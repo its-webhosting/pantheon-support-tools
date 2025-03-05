@@ -21,7 +21,7 @@ terminus wp its-wws-test1.live -- core version
 
 ## get_pantheon_domains
 
-Creates a CSV file containing information about all plugins and themes installed for WordPress websites' Live and Dev environments in a pantheon orginization (workspace).  This is useful for finding which sites are running versions of a plugin/theme that have a particular security vulnerability.
+Creates a text file listing all the custom domains attached to the Live environment of Pantheon sites on paid plans in our Pantheon organization. It skips domains connected to other environments, and skips sites that have Live environments but are on the Sandbox plan.
 
 The script will create a scratch (working) directory each time it is run.  The directory will be under `./tmp`, if it exists, otherwise it will be under `/tmp`.  The scratch directory is deleted if the script finishes successfully, but is kept for debugging if the script exits with an error.
 

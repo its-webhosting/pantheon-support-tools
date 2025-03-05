@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+
+OUTFILE="pantheon-domains-$(date +%Y%m%d).txt"
+PANTHEON_ORG="regents-of-the-university-of-michigan"
+PARALLELISM=16
+
+if [ -d './tmp' ] ; then
+    SCRATCHDIR="$(pwd)/tmp"
+else
+    SCRATCHDIR="/tmp"
+fi
+
+SITES=$(mktemp "${SCRATCHDIR}/pantheon-domains.sites.XXXXXXXX")
+LOG=$(mktemp "${SCRATCHDIR}/pantheon-domains.log.XXXXXXXX")
+export DOMAINS=$(mktemp "${SCRATCHDIR}/pantheon-domains.domains.XXXXXXXX")
+
+echo "Getting site list..."
+terminus org:site:list "${PANTHEON_ORG}" --format json | jq -r '.[] | select(.plan_name != "Sandbox") | .name' > "${SITES}"
+
+function get_domains {
+    site="$1"
+    terminus domain:list "${site}.live" --format json | \
+      jq -r '.[] | .id' | \
+      grep -v pantheonsite.io >> "${DOMAINS}"
+}
+
+export -f get_domains
+
+echo "Getting domains for each Live site..."
+cat "${SITES}" | rust-parallel --shell-path "$(which bash)" --jobs "${PARALLELISM}" --progress-bar -s "get_domains" > "${LOG}"
+cat "${LOG}"
+
+grep -v test.webservices.umich.edu "${DOMAINS}" | sort -u > "${OUTFILE}"
+echo "Done. List of domains is in:"
+echo "${OUTFILE}"

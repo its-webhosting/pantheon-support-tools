@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+
+OUTFILE="pantheon-wordpress-plugins-$(date +%Y%m%d).csv"
+PANTHEON_ORG="regents-of-the-university-of-michigan"
+PARALLELISM=16
+
+if [ -d './tmp' ] ; then
+    SCRATCHDIR="$(pwd)/tmp"
+else
+    SCRATCHDIR="/tmp"
+fi
+
+SITES=$(mktemp "${SCRATCHDIR}/pantheon-wp-plugins.sites.XXXXXXXX")
+LOG=$(mktemp "${SCRATCHDIR}/pantheon-wp-plugins.log.XXXXXXXX")
+LIST=$(mktemp "${SCRATCHDIR}/pantheon-wp-plugins.list.XXXXXXXX")
+export WORKDIR=$(mktemp -d "${SCRATCHDIR}/pantheon-wp-plugins.scratch.XXXXXXXX")
+
+
+echo "===== Getting site IDs"
+
+tab=$(echo -en "\t")
+terminus org:site:list "${PANTHEON_ORG}" --format json \
+  | jq -r '.[] | [.name, .framework] | @tsv' \
+  | egrep "${tab}wordpress" \
+  | cut -f1 \
+  | sort >> "${SITES}"
+
+
+function get_stuff {
+  site="$1"
+  environ="$2"
+  kind="$3"
+  terminus wp "${site}.${environ}" -- "${kind}" list --skip-plugins --skip-themes --format=csv \
+    | grep ',' \
+    | egrep -v '^name,' \
+    | sed "s/^/${site},${environ},${kind},/" \
+    >> "${WORKDIR}/${site}.${environ}.${kind}"
+}
+
+export -f get_stuff
+
+
+echo  "===== Waking dev sites"
+
+cat "${SITES}" | sed 's/$/.dev/' | rust-parallel --jobs "${PARALLELISM}" --progress-bar -s "terminus env:wake 2>&1" --shell-path "$(which bash)" > "${LOG}"
+cat "${LOG}"
+
+echo -e "\n\n===== Getting plugins/themes"
+
+for site in $(cat ${SITES}) ; do
+  for environ in live dev ; do
+    for kind in plugin theme ; do
+      echo "${site} ${environ} ${kind}" >> "${LIST}"
+    done
+  done
+done
+
+cat "${LIST}" | rust-parallel --jobs 16 --progress-bar -s "get_stuff" --shell-path "$(which bash)" > "${LOG}"
+
+echo -e "\n\n===== Getting plugins/themes"
+echo "site,env,type,name,status,update,version,update_version,auto_update" > "${OUTFILE}"
+cat "${WORKDIR}"/* | sort >> "${OUTFILE}"
+
+rm -f "${SITES}" "${LOG}" "${LIST}"
+rm -rf "${WORKDIR}"
+
+echo -e "\n\n===== Done, plugin list is in:\n${OUTFILE}"
+

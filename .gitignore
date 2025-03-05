@@ -1,0 +1,26 @@
+# Stuff specific to this repo
+*.csv
+*.txt
+/tmp/*
+!/tmp/.gitkeep
+
+# Editor backup and temporary files
+.*.swp
+*~
+
+# macOS stuff
+.DS_Store
+/.idea/
+
+# Logs
+logs
+*.log
+
+# Python virtual environment
+/venv/
+
+# Other Python stuff
+/build/
+
+# dotenv environment variables file
+.env

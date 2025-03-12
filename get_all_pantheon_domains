@@ -27,7 +27,7 @@ function get_domains {
 export -f get_domains
 
 echo "Getting domains for each Live site..."
-cat "${SITES}" | rust-parallel --shell-path "$(which bash)" --jobs "${PARALLELISM}" --progress-bar -s "get_domains" > "${LOG}"
+cat "${SITES}" | rust-parallel --shell-path "$(which bash)" --jobs "${PARALLELISM}" --progress-bar --shell "get_domains" > "${LOG}"
 cat "${LOG}"
 
 grep -v test.webservices.umich.edu "${DOMAINS}" | sort -u > "${OUTFILE}"

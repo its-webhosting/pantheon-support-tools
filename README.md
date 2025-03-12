@@ -81,3 +81,9 @@ sys	1m7.645s
 $
 ```
 
+## generate_drupal_modules_list
+
+Creates a CSV file containing information about all modules and themes installed for Drupal websites' Live and Dev environments in a pantheon orginization (workspace).  This is useful for finding which sites are running versions of a moule/theme that have a particular security vulnerability.
+
+The script will create a scratch (working) directory each time it is run.  The directory will be under `./tmp`, if it exists, otherwise it will be under `/tmp`.  The scratch directory is deleted if the script finishes successfully, but is kept for debugging if the script exits with an error.
+

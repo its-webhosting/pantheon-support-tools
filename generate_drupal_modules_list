@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+
+OUTFILE="pantheon-drupal-modules-$(date +%Y%m%d).csv"
+PANTHEON_ORG="regents-of-the-university-of-michigan"
+PARALLELISM=16
+
+SHELL="$(which bash)"
+
+if [ -d './tmp' ] ; then
+    SCRATCHDIR="$(pwd)/tmp"
+else
+    SCRATCHDIR="/tmp"
+fi
+
+SITES=$(mktemp "${SCRATCHDIR}/pantheon-drupal-modules.sites.XXXXXXXX")
+LOG=$(mktemp "${SCRATCHDIR}/pantheon-drupal-modules.log.XXXXXXXX")
+LIST=$(mktemp "${SCRATCHDIR}/pantheon-drupal-modules.list.XXXXXXXX")
+export WORKDIR=$(mktemp -d "${SCRATCHDIR}/pantheon-drupal-modules.scratch.XXXXXXXX")
+
+
+echo "===== Getting site IDs"
+
+tab=$(echo -en "\t")
+terminus org:site:list "${PANTHEON_ORG}" --format json \
+  | jq -r '.[] | [.name, .framework] | @tsv' \
+  | egrep "${tab}drupal" \
+  | cut -f1 \
+  | sort >> "${SITES}"
+
+
+function get_stuff {
+  site="$1"
+  environ="$2"
+  terminus drush "${site}.${environ}" -- pm:list --format=csv --fields="name,type,status,version,path" --no-interaction \
+    | grep ',' \
+    | egrep -v '^name,' \
+    | sed "s/^/${site},${environ},/" \
+    >> "${WORKDIR}/${site}.${environ}.${kind}"
+}
+
+export -f get_stuff
+
+
+echo  "===== Waking dev sites"
+
+cat "${SITES}" | sed 's/$/.dev/' | rust-parallel --jobs "${PARALLELISM}" --progress-bar --shell-path "${SHELL}" --shell "terminus env:wake 2>&1" > "${LOG}"
+cat "${LOG}"
+
+echo -e "\n\n===== Getting plugins/themes"
+
+for site in $(cat ${SITES}) ; do
+  for environ in live dev ; do
+    echo "${site} ${environ}" >> "${LIST}"
+  done
+done
+
+cat "${LIST}" | rust-parallel --jobs 16 --progress-bar --shell-path "${SHELL}" --shell "get_stuff" > "${LOG}"
+
+echo -e "\n\n===== Getting plugins/themes"
+echo "site,env,name,type,status,version,path" > "${OUTFILE}"
+cat "${WORKDIR}"/* | sort >> "${OUTFILE}"
+
+rm -f "${SITES}" "${LOG}" "${LIST}"
+rm -rf "${WORKDIR}"
+
+echo -e "\n\n===== Done, plugin list is in:\n${OUTFILE}"
+

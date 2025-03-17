@@ -87,3 +87,31 @@ Creates a CSV file containing information about all modules and themes installed
 
 The script will create a scratch (working) directory each time it is run.  The directory will be under `./tmp`, if it exists, otherwise it will be under `/tmp`.  The scratch directory is deleted if the script finishes successfully, but is kept for debugging if the script exits with an error.
 
+
+## generate_site_git_filelists 
+
+Creates lists of all files under /code (that is, all files in Git) in the Dev and Live environments of all websites in the organization.  These lists can then be searched to find sites that have a particuar file as a part of their codebase -- for example, to find sites using unknown plugins that use a vulnerable version of a third-party dependency.
+
+Usage:
+```bash
+./generate_site_git_filelists
+```
+
+Expect the script to take ~10 - 15 minutes per 100 sites in the organization.  The results will be in a directory named `site-git-filelists-YYYYMMDD-HHMM`.  This directory will contain a subdirectory for each site, which in turn will contain the files `files-dev` and (if the Live environment has been initialized for the site) `files-live`.  The file `log.txt` will show any errors encountered while checking the sites' git repositories.
+
+Example: Find all site that have SimpleSAMLphp installed, regardless of whether it is installed as a part of a plugin or if it was manually installed.  The file we're searching for, `SimpleSAML/SessionHandlerPHP.php`, should be something that is always installed if the library is installed, but unlikely to exist in any other code.
+
+```bash
+$ grep SimpleSAML/SessionHandlerPHP.php site-git-filelists-20250314-1636/*/files-*
+site-git-filelists-20250314-1636/graham-graham-website/files-dev:100644 blob 99931bd001e12c06ef3593d94a7540aa4b1b76de   12143	vendor/simplesamlphp/simplesamlphp/src/SimpleSAML/SessionHandlerPHP.php
+site-git-filelists-20250314-1636/graham-graham-website/files-live:100644 blob 99931bd001e12c06ef3593d94a7540aa4b1b76de   12143	vendor/simplesamlphp/simplesamlphp/src/SimpleSAML/SessionHandlerPHP.php
+site-git-filelists-20250314-1636/its-cjatest/files-dev:100644 blob f1d70e31f41e501cfbee8048dfe35e3ae4abcce3   11717	private/simplesamlphp-2.2.2/src/SimpleSAML/SessionHandlerPHP.php
+site-git-filelists-20250314-1636/its-cjatest/files-dev:100644 blob f1d70e31f41e501cfbee8048dfe35e3ae4abcce3   11717	private/simplesamlphp/src/SimpleSAML/SessionHandlerPHP.php
+site-git-filelists-20250314-1636/its-csg-stonesoup/files-dev:100644 blob f1d70e31f41e501cfbee8048dfe35e3ae4abcce3   11717	private/simplesamlphp/src/SimpleSAML/SessionHandlerPHP.php
+site-git-filelists-20250314-1636/panda1/files-dev:100644 blob 6045c59aac2b96c333d45109a69d993ab4ae0d4f   13089	vendor/simplesamlphp/simplesamlphp/lib/SimpleSAML/SessionHandlerPHP.php
+site-git-filelists-20250314-1636/panda1/files-live:100644 blob 6045c59aac2b96c333d45109a69d993ab4ae0d4f   13089	vendor/simplesamlphp/simplesamlphp/lib/SimpleSAML/SessionHandlerPHP.php
+site-git-filelists-20250314-1636/umdd/files-dev:100644 blob f1d70e31f41e501cfbee8048dfe35e3ae4abcce3   11717	vendor/simplesamlphp/simplesamlphp/src/SimpleSAML/SessionHandlerPHP.php
+site-git-filelists-20250314-1636/umdd/files-live:100644 blob f1d70e31f41e501cfbee8048dfe35e3ae4abcce3   11717	vendor/simplesamlphp/simplesamlphp/src/SimpleSAML/SessionHandlerPHP.php
+$ 
+```
+

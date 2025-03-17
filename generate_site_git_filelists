@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+
+export OUTDIR="site-git-filelists-$(date +%Y%m%d-%H%M)"
+PANTHEON_ORG="regents-of-the-university-of-michigan"
+PARALLELISM=8
+
+SHELL="$(which bash)"
+
+if [ -d './tmp' ] ; then
+    SCRATCHDIR="$(pwd)/tmp"
+else
+    SCRATCHDIR="/tmp"
+fi
+
+SITES="${OUTDIR}/site-list.txt"
+LOGS="${OUTDIR}/log.txt"
+
+
+function get_stuff {
+  site="$1"
+
+  echo -e "\n=== ${site}"
+  sitedir="${OUTDIR}/${site}"
+  mkdir "${sitedir}"
+
+  giturl=$(terminus connection:info "${site}.dev" --fields="git_url" --format=string)
+  result="$?"
+  if [ "${result}" -ne 0 ] ;then
+    echo "ERROR getting Git URL for site ${site}: exit code ${result} (${git_url})"
+    continue
+  fi
+  if ! [[ "${giturl}" =~ ^ssh:// ]] ; then
+    echo "ERROR: got unexpected Git URL: ${giturl}"
+    continue
+  fi
+  echo "${giturl}" > "${sitedir}/giturl"
+
+  pushd "${sitedir}"
+
+  git clone --bare "${giturl}" 2>&1
+  cd repository.git
+
+  refs=$(git show-ref | cut -d ' ' -f 2)
+
+  dev_ref=$(echo "$refs" | egrep '^refs/tags/pantheon_build_artifacts_master$')
+  if [ "$?" -ne 0 ] ; then
+    dev_ref='refs/head/master'
+  fi
+
+  live_ref=$(echo "$refs" | egrep '^refs/tags/pantheon_build_artifacts_live$')
+  if [ "$?" -ne 0 ] ; then
+    live_ref=''
+    n=$(echo "$refs" | perl -n -e 'BEGIN { $n=0; }' -e '$n=$1 if m%^refs/tags/pantheon_live_(\d+)$% && int($1) > int($n);' -e 'END { print "$n"; }')
+    if [ "$n" -gt 0 ] ; then
+      live_ref="refs/tags/pantheon_live_${n}"
+    fi
+  fi  
+
+  dev_ref=$(echo "${dev_ref}" | cut -d/ -f3)
+  live_ref=$(echo "${live_ref}" | cut -d/ -f3)
+  echo " dev ref: ${dev_ref}"
+  echo "live ref: ${live_ref}"
+
+  git ls-tree -l -r --full-tree "${dev_ref}" > "../files-dev"
+
+  if [ -n "${live_ref}" ] ; then
+    git ls-tree -l -r --full-tree "${live_ref}" > "../files-live"
+  fi
+
+  cd ..
+  rm -rf repository.git
+
+  popd
+}
+
+export -f get_stuff
+
+
+echo "===== Getting site list"
+mkdir "${OUTDIR}"
+terminus org:site:list "${PANTHEON_ORG}" --field name | sort > "${SITES}"
+
+
+echo -e "\n\n===== Retrieving site Git filelists"
+rust-parallel --input-file "${SITES}" --jobs "${PARALLELISM}" --progress-bar --shell-path "${SHELL}" --shell "get_stuff" > "${LOGS}"
+
+echo -e "\n\n===== Logs:"
+cat "${LOGS}"
+
+echo -e "\n\n===== Done, results are in ${OUTDIR}"
+

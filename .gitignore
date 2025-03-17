@@ -1,6 +1,7 @@
 # Stuff specific to this repo
 *.csv
 *.txt
+/site-git-filelists-20*
 /tmp/*
 !/tmp/.gitkeep
 

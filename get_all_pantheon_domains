@@ -21,7 +21,7 @@ function get_domains {
     site="$1"
     terminus domain:list "${site}.live" --format json | \
       jq -r '.[] | .id' | \
-      grep -v pantheonsite.io >> "${DOMAINS}"
+      grep -v pantheonsite.io | sed "s/\$/,${site}/" >> "${DOMAINS}"
 }
 
 export -f get_domains

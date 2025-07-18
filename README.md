@@ -18,6 +18,25 @@ options:
   'yes': true
 ```
 
+Mac users:  Make sure to use homebrew's OpenSSH rather than Apple's OpenSSH.  When a Pantheon site is `frozen`, the latest version of Apple's OpenSSH seems to hang rather than get a hostname resolution failure.
+
+```bash
+$ which ssh
+/usr/bin/ssh
+
+$ /usr/bin/ssh -V
+OpenSSH_9.9p2, LibreSSL 3.3.6
+
+$ brew install openssh
+...
+
+$ which ssh
+/opt/homebrew/bin/ssh
+
+$ /opt/homebrew/bin/ssh -V
+OpenSSH_9.9p2, OpenSSL 3.5.1 1 Jul 2025
+```
+
 Install:
 
 ```bash

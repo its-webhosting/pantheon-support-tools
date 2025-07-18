@@ -6,6 +6,20 @@ Various scripts for supporting Pantheon at the University of Michigan.
 
 Make sure you have `terminus` installed and working.  You will need to configure both a machine token as well as a Pantheon SSH key (preferably encrypted with a passphrase and loaded into `ssh-agent`) configured and working.
 
+Make sure `~/.terminus/config` exists and has the following contents:
+
+```yaml
+http_max_retries: 10
+http_retry_backoff: 30
+options:
+  interactive: false
+  verbose: true
+  no-interaction: true
+  'yes': true
+```
+
+Install:
+
 ```bash
 git clone git@github.com:its-pantheon/pantheon-support-tools.git
 cd pantheon-support-tools

@@ -54,7 +54,7 @@ for site in $(cat ${SITES}) ; do
   done
 done
 
-cat "${LIST}" | rust-parallel --jobs 16 --progress-bar --shell-path "${SHELL}" --shell "get_stuff" > "${LOG}"
+cat "${LIST}" | rust-parallel --jobs "${PARALLELISM}" --progress-bar --shell-path "${SHELL}" --shell "get_stuff" > "${LOG}"
 
 echo -e "\n\n===== Getting plugins/themes"
 echo "site,env,name,type,status,version,path" > "${OUTFILE}"

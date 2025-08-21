@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+
+OUTFILE="pantheon-sites-ips-$(date +%Y%m%d).csv"
+PANTHEON_ORG="regents-of-the-university-of-michigan"
+PARALLELISM=4
+
+SHELL="$(which bash)"
+
+if [ -d './tmp' ] ; then
+    SCRATCHDIR="$(pwd)/tmp"
+else
+    SCRATCHDIR="/tmp"
+fi
+
+SITES=$(mktemp "${SCRATCHDIR}/pantheon-sites-ips.sites.XXXXXXXX")
+LOG=$(mktemp "${SCRATCHDIR}/pantheon-db-versions.log.XXXXXXXX")
+export WORKDIR=$(mktemp -d "${SCRATCHDIR}/pantheon-wp-plugins.scratch.XXXXXXXX")
+
+
+function get_stuff {
+  site_info=($1)
+  site_name=$(echo "$site_info" | cut -d, -f1)
+  site_id=$(echo "$site_info" | cut -d, -f2)
+  for environ in "live" "test" "dev" ; do
+    ips=$(dig +short -4 "appserver.${environ}.$(terminus site:lookup ${site_id}).drush.in")
+    iplist=$(echo "$ips" | tr -s '\n' ' ')
+    echo "${site_name},${environ},${iplist}" >> "${WORKDIR}/${site_name}"
+  done
+}
+export -f get_stuff
+
+echo "===== Getting site IDs"
+
+terminus org:site:list "${PANTHEON_ORG}" --fields name,id --format=csv > "${SITES}"
+
+echo -e "\n\n===== Getting IP addresses"
+echo "site,env,ips" > "${OUTFILE}"
+
+cat "${SITES}" | rust-parallel --jobs "${PARALLELISM}" --progress-bar --shell-path "${SHELL}" --shell "get_stuff" > "${LOG}"
+cat "${LOG}"
+cat "${WORKDIR}"/* >> "${OUTFILE}"
+
+rm -f "${SITES}" "${LOG}"
+rm -rf "${WORKDIR}"
+
+echo -e "\n\n===== Done, site IP address list is in:\n${OUTFILE}"
+

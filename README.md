@@ -40,7 +40,8 @@ OpenSSH_9.9p2, OpenSSL 3.5.1 1 Jul 2025
 Install:
 
 ```bash
-git clone git@github.com:its-pantheon/pantheon-support-tools.git
+git clone git@github.com:its-webhosting/pantheon-support-tools.git
+
 cd pantheon-support-tools
 
 brew install rust-parallel

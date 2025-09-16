@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -e
+set -o pipefail
+target="$1"
+site_name=$(echo "$target" | cut -d. -f1)
+site_env=$(echo "$target" | cut -d. -f2)
+if [ -z "$site_name" -o -z "$site_env" ] ; then
+  echo "Usage: $0 SITE.ENV" 1>&2
+  exit 1
+fi
+site_id=$(terminus site:lookup ${site_name})
+ssh \
+  -T "${site_env}.${site_id}@appserver.${site_env}.${site_id}.drush.in" \
+  -p 2222 \
+  -o "StrictHostKeyChecking=no" \
+  -o "AddressFamily inet" \
+  -o "ControlMaster=no" \
+  -o "ControlPath=/tmp/ssh-%r" \
+  -o "UserKnownHostsFile=/dev/null" \
+  -o "LogLevel=ERROR" \
+  "echo -e 'if grep -q CentOS /etc/centos-release 2>/dev/null ; then echo \"PHP Runtime: Gen 1\" ; else echo \"PHP Runtime: Gen 2\" ; fi ; q=\$(egrep "^php_runtime_generation:" /code/pantheon.yml 2>/dev/null | cut -d: -f2 | tr -d \" \") ; if [ -z \"\$q\" ] ; then echo \"Override:    none\" ; else echo \"Override:    Gen \$q\"; fi' | bash ; exit \${PIPESTATUS[1]}"

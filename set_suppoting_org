@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+#
+# set_supporting_org
+#
+# 1. Make sure every site in our main org is in our supporting org
+# 2. Make sure every user on a site time is in our support org with role `unprivileged`
+#    (except for direct members of our main org)
+#
+# TODO: remove people who are in the support org but not on any site team
+#
+# TODO: alert if there is someont in the support org who is not a direct member
+#       of the main org with a role other than `unprivileged`.  These people will
+#       have access to all sites university-wide, which will be a huge problem!
+#
+
+set -uo pipefail
+
+PANTHEON_ORG="regents-of-the-university-of-michigan"
+SUPPORT_ORG="university-of-michigan-support-org"
+
+echo "===== Getting ${PANTHEON_ORG} members"
+org_team=$(terminus org:people:list "${PANTHEON_ORG}" --field=email | sort)
+
+echo "===== Getting ${SUPPORT_ORG} members"
+support_org_team=$(terminus org:people:list "${SUPPORT_ORG}" --field=email | sort)
+
+echo "===== Getting site IDs"
+
+sites=$(terminus org:site:list "${PANTHEON_ORG}" --field name | sort)
+
+declare -A users_to_add
+
+for site in $sites ; do
+    echo -e "\n===== ${site}"
+    terminus site:org:add "${site}" "${SUPPORT_ORG}" 2>&1 | grep -v "Membership already exists"
+    site_team=$(terminus site:team:list "${site}" --field=email | sort)
+    for user in ${site_team} ; do
+        echo "${support_org_team}" | grep -q "${user}"
+        if [ $? -eq 1 ] ; then
+            echo "${org_team}" | grep -q "${user}"
+            if [ $? -eq 1 ] ; then
+                echo "missing: $user"
+                users_to_add[$user]=1
+            fi
+        fi
+    done
+done
+
+echo "===== Adding missing users:"
+for user in "${!users_to_add[@]}" ; do
+    echo "adding $user"
+    terminus org:people:add university-of-michigan-support-org "$user" developer
+    sleep 3 # make sure Pantheon has some time to finish its work
+    terminus org:people:role university-of-michigan-support-org "$user" unprivileged
+done
+

@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+#
+# get_user_access
+#
+# Get a list of all sites and all users
+#
+
+set -uo pipefail
+
+PANTHEON_ORG="regents-of-the-university-of-michigan"
+
+echo "===== Getting list of sites"
+sites=$(terminus org:site:list "${PANTHEON_ORG}" --field name | sort)
+
+echo -n > sites_users.csv
+
+for site in $sites ; do
+    echo "===== ${site}"
+    site_team=$(terminus site:team:list "${site}" --field=email | sort)
+    echo "${site}:" $site_team >> sites_users.csv
+done
+

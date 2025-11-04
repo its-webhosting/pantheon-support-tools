@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+
+PANTHEON_ORG="${PANTHEON_ORG:-regents-of-the-university-of-michigan}"
+PARALLELISM=8
+
+OUTFILE="pantheon-db-sizes-$(date +%Y%m%d).csv"
+
+SHELL="$(which bash)"
+
+if [ -d './tmp' ] ; then
+    SCRATCHDIR="$(pwd)/tmp"
+else
+    SCRATCHDIR="/tmp"
+fi
+
+SITES=$(mktemp "${SCRATCHDIR}/pantheon-db-sizes.sites.XXXXXXXX")
+LOG=$(mktemp "${SCRATCHDIR}/pantheon-db-sizes.log.XXXXXXXX")
+export WORKDIR=$(mktemp -d "${SCRATCHDIR}/pantheon-db-sizes.scratch.XXXXXXXX")
+
+
+function get_stuff {
+  site_name="$1"
+  for environ in "dev" "test" "live" ; do
+    info=$(terminus backup:list "${site_name}.live" --element=db --fields=file,size --format=csv 2>/dev/null | head -2 | tail -1)
+    echo "${site_name},${environ},${info}" >> "${WORKDIR}/${site_name}"
+  done
+}
+export -f get_stuff
+
+echo "===== Getting site IDs"
+
+terminus org:site:list "${PANTHEON_ORG}" --fields=name --format=string > "${SITES}"
+
+echo -e "\n\n===== Getting DB sizes"
+echo "site,env,filename,size" > "${OUTFILE}"
+
+rust-parallel --input-file "${SITES}" --jobs "${PARALLELISM}" --progress-bar --shell-path "${SHELL}" --shell "get_stuff" > "${LOG}"
+cat "${LOG}"
+cat "${WORKDIR}"/* >> "${OUTFILE}"
+
+rm -f "${SITES}" "${LOG}"
+rm -rf "${WORKDIR}"
+
+echo -e "\n\n===== Done, site DB sizes list is in:\n${OUTFILE}"
+

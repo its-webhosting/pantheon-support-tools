@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
+#
+# generate_git_filelists
+#
+# List all the files in all Dev and Live environments for a Pantheon org
+#
+
+PANTHEON_ORG="${PANTHEON_ORG:-regents-of-the-university-of-michigan}"
+PARALLELISM=8
 
 export OUTDIR="site-git-filelists-$(date +%Y%m%d-%H%M)"
-PANTHEON_ORG="regents-of-the-university-of-michigan"
-PARALLELISM=8
 
 SHELL="$(which bash)"
 

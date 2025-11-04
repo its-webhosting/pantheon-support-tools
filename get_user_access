@@ -7,7 +7,7 @@
 
 set -uo pipefail
 
-PANTHEON_ORG="regents-of-the-university-of-michigan"
+PANTHEON_ORG="${PANTHEON_ORG:-regents-of-the-university-of-michigan}"
 
 echo "===== Getting list of sites"
 sites=$(terminus org:site:list "${PANTHEON_ORG}" --field name | sort)
@@ -19,4 +19,5 @@ for site in $sites ; do
     site_team=$(terminus site:team:list "${site}" --field=email | sort)
     echo "${site}:" $site_team >> sites_users.csv
 done
+echo "===== output is in site_users.csv"
 

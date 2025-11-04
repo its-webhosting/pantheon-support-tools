@@ -53,6 +53,15 @@ Make sure the following command runs successfully and returns a WordPress versio
 terminus wp its-wws-test1.live -- core version
 ```
 
+## Environment variables
+
+Set the following environment variables before running any of the scripts.  `PANTHEON_ORG` is used by most scripts in this repo.
+
+```bash
+export PANTHEON_ORG="regents-of-the-university-of-michigan"
+export SUPPORT_ORG="university-of-michigan-support-org"  # only used by set_support_org script
+```
+
 ## get_pantheon_domains
 
 Creates a text file listing all the custom domains attached to the Live environment of Pantheon sites on paid plans in our Pantheon organization. It skips domains connected to other environments, and skips sites that have Live environments but are on the Sandbox plan.

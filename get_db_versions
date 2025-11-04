@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
+#
+# get_db_versions
+#
+# Gets the version of the database for the Live environment of all sites in a Pantheon org.
+#
+
+PANTHEON_ORG="${PANTHEON_ORG:-regents-of-the-university-of-michigan}"
+PARALLELISM=16
 
 OUTFILE="pantheon-db-versions-$(date +%Y%m%d).csv"
-PANTHEON_ORG="regents-of-the-university-of-michigan"
-PARALLELISM=16
 
 SHELL="$(which bash)"
 

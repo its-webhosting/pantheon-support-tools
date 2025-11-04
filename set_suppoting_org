@@ -15,8 +15,8 @@
 
 set -uo pipefail
 
-PANTHEON_ORG="regents-of-the-university-of-michigan"
-SUPPORT_ORG="university-of-michigan-support-org"
+PANTHEON_ORG="${PANTHEON_ORG:-regents-of-the-university-of-michigan}"
+SUPPORT_ORG="${SUPPORT_ORG:-university-of-michigan-support-org}"
 
 echo "===== Getting ${PANTHEON_ORG} members"
 org_team=$(terminus org:people:list "${PANTHEON_ORG}" --field=email | sort)
@@ -26,7 +26,7 @@ support_org_team=$(terminus org:people:list "${SUPPORT_ORG}" --field=email | sor
 
 echo "===== Getting site IDs"
 
-sites=$(terminus org:site:list "${PANTHEON_ORG}" --field name | sort)
+sites=$(terminus org:site:list "${PANTHEON_ORG}" --field=name | sort)
 
 declare -A users_to_add
 

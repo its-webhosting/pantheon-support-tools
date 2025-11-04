@@ -1,8 +1,19 @@
 #!/usr/bin/env bash
+#
+# generate_drupal_modules_list
+#
+# For all Pantheon Drupal sites in an oranization, create a single CSV file that
+# lists what Drupal modules are in their Dev and Live environments.
+#
+# Usage:
+#     export PANTHEON_ORG="regents-of-the-university-of-michigan"
+#     ./generate_drupal_modules_list
+#
+
+PANTHEON_ORG="${PANTHEON_ORG:-regents-of-the-university-of-michigan}"
+PARALLELISM=16
 
 OUTFILE="pantheon-drupal-modules-$(date +%Y%m%d).csv"
-PANTHEON_ORG="regents-of-the-university-of-michigan"
-PARALLELISM=16
 
 SHELL="$(which bash)"
 

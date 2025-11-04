@@ -1,8 +1,20 @@
 #!/usr/bin/env bash
+#
+# get_all_pantheon_domains
+#
+# Create a list that maps site domain names to Pantheon site names.  For example,
+#     its.umich.edu,its-its-umich-drupal7
+#     sites.its.umich.edu,its-its-umich-drupal7
+#     www.its.umich.edu,its-its-umich-drupal7
+#
+# Usage:
+#     export PANTHEON_ORG="regenets-of-the-university-of-michigan"
+#     ./get_all_pantheon_domains
+
+PANTHEON_ORG="${PANTHEON_ORG:-regents-of-the-university-of-michigan}"
+PARALLELISM=16
 
 OUTFILE="pantheon-domains-$(date +%Y%m%d).txt"
-PANTHEON_ORG="regents-of-the-university-of-michigan"
-PARALLELISM=16
 
 if [ -d './tmp' ] ; then
     SCRATCHDIR="$(pwd)/tmp"

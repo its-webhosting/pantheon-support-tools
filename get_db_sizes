@@ -1,4 +1,11 @@
 #!/usr/bin/env bash
+#
+# get_db_sizes
+#
+# Gets the sizes of all datrabases for all Pantheon site Dev, Test, and Live
+# environments in a Pantheon org.  Probably not much use in the future, we
+# just needed to know this one time.
+#
 
 PANTHEON_ORG="${PANTHEON_ORG:-regents-of-the-university-of-michigan}"
 PARALLELISM=8

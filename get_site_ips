@@ -1,8 +1,19 @@
 #!/usr/bin/env bash
+#
+# get_site_ips
+#
+# Get the appserver container IP addresses for the Dev, Test, and Live
+# environments of all sites in a Pantheon org.
+#
+# If someone gives you an IP address from which a Pantheon website sent a
+# request to another website, this script will let you track down which
+# Pantheon site (and environment) sent that request.
+#
+
+PANTHEON_ORG="${PANTHEON_ORG:-regents-of-the-university-of-michigan}"
+PARALLELISM=4
 
 OUTFILE="pantheon-sites-ips-$(date +%Y%m%d).csv"
-PANTHEON_ORG="regents-of-the-university-of-michigan"
-PARALLELISM=4
 
 SHELL="$(which bash)"
 

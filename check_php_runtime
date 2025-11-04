@@ -1,4 +1,16 @@
 #!/usr/bin/env bash
+#
+# check_php_runtime
+#
+# Returns which generation of runtime a site's environment is running.
+# Also indicates if this has been set/overridden in pantheon.yml
+#
+# Usage:
+#     ./check_php_runtime SITE_NAME ENV
+#
+# Example:
+#     ./check_php_runtime its-wws-test1 live
+
 set -e
 set -o pipefail
 target="$1"

@@ -1,8 +1,19 @@
 #!/usr/bin/env bash
+#
+# generate_wp_plugins_list
+#
+# For all Pantheon WordPress sites in an oranization, create a single CSV file that
+# lists what WordPress plugins are in their Dev and Live environments.
+#
+# Usage:
+#     export PANTHEON_ORG="regents-of-the-university-of-michigan"
+#     ./generate_wp_plugins_list
+#
+
+PANTHEON_ORG="${PANTHEON_ORG:-regents-of-the-university-of-michigan}"
+PARALLELISM=16
 
 OUTFILE="pantheon-wordpress-plugins-$(date +%Y%m%d).csv"
-PANTHEON_ORG="regents-of-the-university-of-michigan"
-PARALLELISM=16
 
 SHELL="$(which bash)"
 

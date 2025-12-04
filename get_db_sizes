@@ -28,7 +28,7 @@ export WORKDIR=$(mktemp -d "${SCRATCHDIR}/pantheon-db-sizes.scratch.XXXXXXXX")
 function get_stuff {
   site_name="$1"
   for environ in "dev" "test" "live" ; do
-    info=$(terminus backup:list "${site_name}.live" --element=db --fields=file,size --format=csv 2>/dev/null | head -2 | tail -1)
+    info=$(terminus backup:list "${site_name}.${environ}" --element=db --fields=file,size --format=csv 2>/dev/null | head -2 | tail -1)
     echo "${site_name},${environ},${info}" >> "${WORKDIR}/${site_name}"
   done
 }

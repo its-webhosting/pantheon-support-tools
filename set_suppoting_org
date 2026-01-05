@@ -5,8 +5,8 @@
 # 1. Make sure every site in our main org is in our supporting org
 # 2. Make sure every user on a site time is in our support org with role `unprivileged`
 #    (except for direct members of our main org)
-#
-# TODO: remove people who are in the support org but not on any site team
+# 3. Remove support org members with role "unprivilged" who are no longer on site
+#    teams (except for direct members of our main org)
 #
 # TODO: alert if there is someont in the support org who is not a direct member
 #       of the main org with a role other than `unprivileged`.  These people will
@@ -18,39 +18,62 @@ set -uo pipefail
 PANTHEON_ORG="${PANTHEON_ORG:-regents-of-the-university-of-michigan}"
 SUPPORT_ORG="${SUPPORT_ORG:-university-of-michigan-support-org}"
 
+declare -A users_to_add
+declare -A users_on_site_team
+
 echo "===== Getting ${PANTHEON_ORG} members"
 org_team=$(terminus org:people:list "${PANTHEON_ORG}" --field=email | sort)
 
 echo "===== Getting ${SUPPORT_ORG} members"
 support_org_team=$(terminus org:people:list "${SUPPORT_ORG}" --field=email | sort)
 
-echo "===== Getting site IDs"
+echo "===== Getting ${SUPPORT_ORG} sites"
+declare -A support_org_sites
+for site in $(terminus org:site:list "${SUPPORT_ORG}" --field=name) ; do
+    support_org_sites["${site}"]=1
+done
 
+echo "===== Getting site names"
 sites=$(terminus org:site:list "${PANTHEON_ORG}" --field=name | sort)
-
-declare -A users_to_add
 
 for site in $sites ; do
     echo -e "\n===== ${site}"
-    terminus site:org:add "${site}" "${SUPPORT_ORG}" 2>&1 | grep -v "Membership already exists"
+    # The trailing hyphen sets default value to "" and avoids an
+    # "unbound variable" error when the site is not in the support org
+    if [ "${support_org_sites[$site]-}" != "1" ] ; then
+        echo "Adding ${site} to the supporting org"
+        terminus site:org:add "${site}" "${SUPPORT_ORG}"
+    fi
     site_team=$(terminus site:team:list "${site}" --field=email | sort)
     for user in ${site_team} ; do
+        users_on_site_team["${user}"]=1
         echo "${support_org_team}" | grep -q "${user}"
         if [ $? -eq 1 ] ; then
             echo "${org_team}" | grep -q "${user}"
             if [ $? -eq 1 ] ; then
-                echo "missing: $user"
-                users_to_add[$user]=1
+                echo "missing: ${user}"
+                users_to_add["${user}"]=1
             fi
         fi
     done
 done
 
-echo "===== Adding missing users:"
+echo -e "\n===== Adding missing users:"
 for user in "${!users_to_add[@]}" ; do
-    echo "adding $user"
-    terminus org:people:add university-of-michigan-support-org "$user" developer
+    echo "adding ${user}"
+    terminus org:people:add "${SUPPORT_ORG}" "${user}" developer
     sleep 3 # make sure Pantheon has some time to finish its work
-    terminus org:people:role university-of-michigan-support-org "$user" unprivileged
+    terminus org:people:role "${SUPPORT_ORG}" "${user}" unprivileged
+done
+
+echo -e "\n===== Removing support org members who are no longer on site teams:"
+for user in $support_org_team ; do
+    if [ "${users_on_site_team[$user]-}" != "1" ] ; then
+        echo "${org_team}" | grep -q "${user}"
+        if [ $? -eq 1 ] ; then
+            echo "removing ${user}"
+            terminus org:people:remove "${SUPPORT_ORG}" "${user}"
+        fi
+    fi
 done
 

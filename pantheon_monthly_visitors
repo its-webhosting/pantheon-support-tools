@@ -10,12 +10,12 @@ Full example:
 
     terminus logs:get its-its-umich.live
     zgrep "" ~/.terminus/site-logs/its-its-umich/live/*/nginx-access* | ./pantheon_monthly_visitors 2026-05-01 >/tmp/visitors.csv
-    grep -i amazonbot /tmp/visitors.csv   # How many requests were from Amazon?
+    grep -i amazonbot /tmp/visitors.csv   # How many requests were from Amazon crawlers/agents?
     grep -i ChatGPT-User /tmp/visitors.csv  # How many requests were due to ChatGPT user prompts?
     # The ChatGPT crawler (to train ChatGPT) is all over the place in terms of User Agent:
     grep -i ChatGPT/ /tmp/visitors.csv   # note trailing "/" to exclude ChatGPT-User
     # ...so we sum everything:
-    grep -i ChatGPT/ /tmp/visitors | cut -d, -f1 | jq -s add
+    grep -i ChatGPT/ /tmp/visitors.csv | cut -d, -f1 | jq -s add
 """
 
 import sys

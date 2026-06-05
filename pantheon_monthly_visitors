@@ -1,0 +1,158 @@
+#!/usr/bin/env python3
+"""
+Parse Nginx access log entries from STDIN and output CSV summarizing
+unique daily visitors by user agent over a 31-day window.
+
+Usage, with START_DATE specified as YYYY-MM-DD:
+  ./pantheon_monthly_visitors START_DATE
+
+Full example:
+
+    terminus logs:get its-its-umich.live
+    zgrep "" ~/.terminus/site-logs/its-its-umich/live/*/nginx-access* | ./pantheon_monthly_visitors 2026-05-01 >/tmp/visitors.csv
+    grep -i amazonbot /tmp/visitors.csv   # How many requests were from Amazon?
+    grep -i ChatGPT-User /tmp/visitors.csv  # How many requests were due to ChatGPT user prompts?
+    # The ChatGPT crawler (to train ChatGPT) is all over the place in terms of User Agent:
+    grep -i ChatGPT/ /tmp/visitors.csv   # note trailing "/" to exclude ChatGPT-User
+    # ...so we sum everything:
+    grep -i ChatGPT/ /tmp/visitors | cut -d, -f1 | jq -s add
+"""
+
+import sys
+import re
+import csv
+from datetime import datetime, timedelta
+from collections import defaultdict
+from pathlib import Path
+
+
+def parse_log_line(line):
+    """
+    Parse an Nginx access log line and return (date, client_ip, user_agent).
+    Returns None if the line cannot be parsed.
+    """
+    # Pattern to match the Nginx combined log format with extras
+    # Fields:
+    #   1. Remote addr (first field)
+    #   2. - (identity)
+    #   3. - (user)
+    #   4. [datetime]
+    #   5. "request"
+    #   6. status
+    #   7. body_bytes_sent
+    #   8. "referer"
+    #   9. "user_agent"
+    #  10. request_time
+    #  11. "x_forwarded_for list"
+
+    pattern = re.compile(
+        r'^(\S+)\s+'           # remote_addr
+        r'\S+\s+'              # remote_user (identity)
+        r'\S+\s+'              # remote_user
+        r'\[([^\]]+)\]\s+'     # date/time
+        r'"([^"]*)"\s+'        # request
+        r'(\d+)\s+'            # status
+        r'\d+\s+'              # body_bytes_sent
+        r'"[^"]*"\s+'          # referer
+        r'"([^"]*)"\s+'        # user_agent
+        r'\S+\s+'              # request_time
+        r'"([^"]*)"'           # x_forwarded_for
+    )
+
+    match = pattern.match(line.strip())
+    if not match:
+        return None
+
+    remote_addr = match.group(1)
+    date_str = match.group(2)
+    request = match.group(3)
+    status = match.group(4)
+    user_agent = match.group(5)
+    forwarded_for = match.group(6)
+
+    # Parse the date
+    try:
+        log_datetime = datetime.strptime(date_str, '%d/%b/%Y:%H:%M:%S %z')
+        log_date = log_datetime.date()
+    except ValueError:
+        return None
+
+    # Get the client IP: first IP in the x_forwarded_for list
+    if forwarded_for and forwarded_for.strip() and forwarded_for.strip() != '-':
+        client_ip = forwarded_for.split(',')[0].strip()
+    else:
+        # Fall back to remote_addr if no forwarded_for
+        client_ip = remote_addr
+
+    return log_date, status, request, client_ip, user_agent
+
+
+def main():
+    if len(sys.argv) != 2:
+        print(f"Usage: {sys.argv[0]} <start_date>", file=sys.stderr)
+        print(f"  start_date format: YYYY-MM-DD", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        start_date = datetime.strptime(sys.argv[1], '%Y-%m-%d').date()
+    except ValueError:
+        print(f"Error: Invalid date format. Use YYYY-MM-DD.", file=sys.stderr)
+        sys.exit(1)
+
+    end_date = start_date + timedelta(days=31)
+
+    # For each user agent, for each day, track unique client IPs
+    # Structure: ua_daily_ips[user_agent][date] = set of client_ips
+    ua_daily_ips = defaultdict(lambda: defaultdict(set))
+
+    for line in sys.stdin:
+        line = line.strip()
+        if not line:
+            continue
+
+        result = parse_log_line(line)
+        if result is None:
+            continue
+
+        log_date, status, request, client_ip, user_agent = result
+
+        # Filter: must be in the one-month date range
+        if log_date < start_date or log_date >= end_date:
+            continue
+
+        # Filter: must be one of the statuses Pantheon counts as valid. See
+        # https://docs.pantheon.io/guides/account-mgmt/traffic#how-do-you-know-if-a-visit-counts
+        if status not in ("200", "303", "304", "305"):
+            continue
+
+        # Filter: exclude static assets
+        if request.startswith("GET "):
+            path = request.split(' ')[1].split("?")[0]
+            extension = Path(path).suffix.lstrip(".").lower()
+            if extension in ("7z", "apk", "avi", "avif", "bin", "bmp", "bz2", "class", "cpio", "css", "csv", "deb", "dmg", "doc", "docx", "ejs", "eot", "eps", "exe", "flac", "gif", "gz", "ico", "iso", "jar", "jpeg", "jpg", "js", "m4a", "m4v", "mid", "midi", "mkv", "mp3", "mp4", "ogg", "otf", "pdf", "pict", "pls", "png", "ppt", "pptx", "ps", "rar", "rpm", "svg", "svgz", "swf", "tar", "tgz", "tif", "tiff", "torrent", "ttf", "txt", "webm", "webp", "woff", "woff2", "xls", "xlsx", "xz", "zip", "zstd"):
+                continue
+
+        ua_daily_ips[user_agent][log_date].add(client_ip)
+
+    # Calculate total visits per user agent
+    # Each unique IP per day counts as one visit
+    ua_totals = {}
+    for user_agent, daily_ips in ua_daily_ips.items():
+        total = sum(len(ips) for ips in daily_ips.values())
+        ua_totals[user_agent] = total
+
+    # Output CSV sorted by visit count descending
+    writer = csv.writer(sys.stdout)
+    writer.writerow(['visits', 'user_agent'])
+
+    total_count = 0
+    for user_agent, count in sorted(ua_totals.items(), key=lambda x: x[1], reverse=True):
+        total_count += count
+        writer.writerow([count, user_agent])
+
+    print(f'Total monthly visitors: {total_count}', file=sys.stderr)
+
+
+if __name__ == '__main__':
+    main()
+
